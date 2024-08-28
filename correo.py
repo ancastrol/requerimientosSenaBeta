@@ -56,7 +56,6 @@ for index, row in df.iterrows():
 
             # Obtener el destinatario del correo electrónico
             destinatario = df[correo_aprendiz[0]].iloc[0]
-            print(f"Valor de B1: {destinatario}")
 
             # Obtener los detalles del correo electrónico
             if destinatario:
@@ -64,42 +63,30 @@ for index, row in df.iterrows():
                 msg = MIMEMultipart()
                 msg['From'] = 'astroc2208@gmail.co'
                 msg['To'] = destinatario
-                msg['Subject'] = 'Notificación automática'
-                # recipient = destinatario
+                msg['Subject'] = 'Falta entrega de bitacora 1'
                 # subject = 'Notificación automática'
-                body = 'Este es un correo electrónico automático enviado desde el programa.'
+                body = 'Este es un correo electrónico automático enviado para notificarle que ya paso la fecha y no ha hecho entrega de la bitacora #1.'
                 msg.attach(MIMEText(body, 'plain'))
-                
-                # Enviar el correo electrónico
-                #print(f"Se enviaría un correo a {recipient}")
-                # msg = MIMEText(body)
-                # msg['Subject'] = subject
-                # msg['To'] = recipient
-                
-                # with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
-                #     smtp.starttls()
-                #     smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
-                #     smtp.send_message(msg)
-                #     print(f"Correo enviado a {recipient}")
 
                 # Conexión al servidor SMTP
                 smtp = smtplib.SMTP('smtp.gmail.com', 587)
                 smtp.starttls()
 
                 # Autenticación con tu correo y contraseña de aplicación
-                smtp.login('tu_correo@gmail.com', 'tu_contraseña_de_aplicación')
+                smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
 
                 # Envío del correo
                 smtp.send_message(msg)
+                print(f"Correo enviado a {destinatario}")
 
                 # Cierre de la conexión SMTP
                 smtp.quit()
                 
             else:
-                print("No se encontró la columna 'email'")
+                print("No se encontró un correo electronico registrado")
         else:
-            print(f"No se envió correo, ya que bitacora 1 si esta subida")
+            print(f"Bitacora 1 esta subida, no es necesario el envió de la notificación")
     else:
-        print(f"Han pasado {diferencia_dias} días, no se envió correo")
+        print(f"Han pasado {diferencia_dias} días, no se ha superado el umbral de {dias_umbral} días")
 
 print("Proceso completado")
