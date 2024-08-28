@@ -23,11 +23,9 @@ for index, row in df.iterrows():
         print("Se encontró una fila vacía, deteniendo la iteración.")
         break
     
-    # Buscar las columnas que contienen los datos necesario para realizar los filtros
     # Fecha en la que se inicio la etapa productiva
     fecha_columna = [col for col in df.columns if 'Inicio_Ficha(Productiva)' in col]
-    # Columna B1
-    columna_b1 = [col for col in df.columns if 'B1' in col]
+
     # Correo del aprendiz
     correo_aprendiz = [col for col in df.columns if 'CorreoAprendiz' in col]
 
@@ -39,18 +37,19 @@ for index, row in df.iterrows():
         print("No se encontró una columna de fecha adecuada")
         break
 
-    # Iterar sobre las columnas de bitacora para verificar cual se ha enviado
+    # Iteración sobre las columnas de bitacora para verificar cual se ha enviado
     for i in range(1, 13):
         columna_bitacora = f'B{i}'
 
         # Calcular la fecha en la que se debe enviar la notificación
         fecha_notificacion = fecha_inicio + timedelta(days=intervalo_dias * i)
 
-        # Verificar si subio la bitacora
+        # Verificar si subio la bitacora o no
         estado_bitacora = df[columna_bitacora].iloc[0].strip().lower()
 
-        # Verificar si se debe enviar la notificación
+        # Verificar si se debe enviar la notificación, comprando la fecha en la que debio subir la bitacora con la fecha actual y si la bitacora no ha sido enviada
         if estado_bitacora == 'no' and fecha_notificacion <= fecha_actual:
+                
             # Obtener el destinatario del correo electrónico
                 destinatario = df[correo_aprendiz[0]].iloc[0]
 
@@ -58,7 +57,7 @@ for index, row in df.iterrows():
                 if destinatario:
 
                     msg = MIMEMultipart()
-                    msg['From'] = 'astroc2208@gmail.co'
+                    msg['From'] = 'astroc2208@gmail.com'
                     msg['To'] = destinatario
                     msg['Subject'] = f'Falta entrega de bitacora {i}'
                     body = f'Por medio de este correo se le notifica que la bitacora {i} no ha sido entregada y debio haber sido subida el dia {fecha_notificacion}.'
