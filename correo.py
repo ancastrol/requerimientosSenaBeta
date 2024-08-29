@@ -29,15 +29,19 @@ for index, row in df.iterrows():
     # Correo del aprendiz
     correo_aprendiz = [col for col in df.columns if 'CorreoAprendiz' in col]
 
+    # Nombre del aprendiz
+    nombre_aprendiz = [col for col in df.columns if 'Aprendiz' in col]
+
     # Se verifica la fecha de inicio de la etapa productiva y se convierte a tipo dateTime
     if fecha_columna:
-        fecha_columna = df[fecha_columna[0]].iloc[0]
+        fecha_columna = df[fecha_columna[0]].iloc[index]
         fecha_inicio = pd.to_datetime(fecha_columna).date()
     else:
         print("No se encontró una columna de fecha adecuada")
         break
 
     # Iteración sobre las columnas de bitacora para verificar cual se ha enviado
+    print(df[nombre_aprendiz[0]].iloc[index])
     for i in range(1, 13):
 
         columna_bitacora = f'B{i}'
