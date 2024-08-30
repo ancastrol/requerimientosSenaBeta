@@ -60,7 +60,7 @@ for index, row in df.iterrows():
         msg['From'] = 'astroc2208@gmail.com'
         msg['To'] = str(destinatario2)
         msg['Cc'] = str(destinatario)
-        msg['Subject'] = 'Fomalización de citación a comité prendiz {nombre_aprendiz}'
+        msg['Subject'] = f'Fomalización de citación a comité aprendiz {nombre_aprendiz}'
         body = f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité'
         msg.attach(MIMEText(body, 'plain'))
 
