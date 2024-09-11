@@ -23,8 +23,9 @@ for index, row in df.iterrows():
         print("Se encontró una fila vacía, deteniendo la iteración.")
         break
     
-    # Fecha en la que se inicio la etapa productiva
-    fecha_columna = [col for col in df.columns if 'Inicio_Ficha(Productiva)' in col]
+    # Se verifica si aprendiz eligio alternativa etapa productiva
+    etapa_productiva = [col for col in df.columns if 'Alternativa(Equipo Etapa Productiva)' in col]
+    alternativa = df[etapa_productiva[0]].iloc[index]    
 
     # Hallar la columna y el valor del nombre del aprendiz
     aprendiz = [col for col in df.columns if 'Aprendiz' in col]
@@ -37,11 +38,17 @@ for index, row in df.iterrows():
     # Hallar la columna y el valor del correo del instructor
     correo_instructor = [col for col in df.columns if 'instructor_seguimiento' in col]
     destinatario2 = df[correo_instructor[0]].iloc[index]
-    print(destinatario2)
+
+    # Hallar columna y valor de formato acta de inicio
+    acta_inicio = [col for col in df.columns if 'ActaInicio' in col]
+    acta_inicio_valor = df[acta_inicio[0]].iloc[index]
 
     # Hallar la columna y el valor de Bitacoras
     bitacoras = [col for col in df.columns if 'Bitacoras' in col]
     cantidad_bitacoras = df[bitacoras[0]].iloc[index]
+
+    # Fecha en la que se inicio la etapa productiva
+    fecha_columna = [col for col in df.columns if 'Inicio_Ficha(Productiva)' in col]
 
     # Se verifica la fecha de inicio de la etapa productiva y se convierte a tipo dateTime
     if fecha_columna:
@@ -51,105 +58,113 @@ for index, row in df.iterrows():
         print("No se encontró una columna de fecha adecuada")
         break
 
-    # Verificar que la fecha actual no sea mayor a la fecha de entrega de la sexta bitacora
-    if fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 6) and cantidad_bitacoras < 5:
+    def requerimientos_2_4():
+                
+        if alternativa != 'NA':
+            #  Se envia notificacion si no se ha entregado acta de inicio antes de una semana
+            if fecha_actual < fecha_inicio + timedelta(days=7) and acta_inicio_valor == 'NO':
+                #se envia un correo al aprendiz
+                enviar_correo_aprendiz(f'Flata acta de inicio por entregar', f'Por medio de este correo se le recuerda que no ha entregado acta de inicio, se le recuerda que si no la entrega antres de {fecha_inicio + timedelta(days=7)} se formalizara la citación a comite.')
+                print(f'Falta acta de inicio por entregar, se ha enviado notificación a {destinatario}')
 
-        print(nombre_aprendiz,cantidad_bitacoras)
-        # Obtener los detalles del correo electrónico
-        msg = MIMEMultipart()
-        msg['From'] = 'astroc2208@gmail.com'
-        msg['To'] = str(destinatario2)
-        msg['Cc'] = str(destinatario)
-        msg['Subject'] = f'Fomalización de citación a comité aprendiz {nombre_aprendiz}'
-        body = f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité'
-        msg.attach(MIMEText(body, 'plain'))
+            elif fecha_actual > fecha_inicio + timedelta(days=7) and acta_inicio_valor == 'NO':
+                #se envia un correo al instructor
+                enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} no ha entregado el acta de inicio y ya ha pasado el tiempo de entrega, por lo que se solicita que formalice la citación a comité.')
+                print(f'Falta acta de inicio por entregar y ya ha pasado una semana, se ha enviado notificación de formalizacion a comite a {destinatario2}')
 
-        # Conexión al servidor SMTP
-        smtp = smtplib.SMTP('smtp.gmail.com', 587)
-        smtp.starttls()
+            # Verificar que la fecha actual no sea mayor a la fecha de entrega de la sexta bitacora
+            if fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 6) and cantidad_bitacoras < 5:
 
-        # Autenticación con tu correo y contraseña de aplicación
-        smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
+                print(nombre_aprendiz,cantidad_bitacoras)
+                # Enviar correo al instructor con copia al aprendiz
+                enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité.')
+            
+            elif fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 12) and cantidad_bitacoras < 12:
 
-        # Envío del correo
-        smtp.send_message(msg)
-        print(f"El aprendiz {nombre_aprendiz} tiene menos de 5 bitacoras subidas y ya paso el tiempo de entrega de la sexta")
+                print(nombre_aprendiz,cantidad_bitacoras)
+                # Enviar correo al instructor con copia al aprendiz
+                enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la bitacora 12, por lo que se solicita que formalice la citación a comité.')
 
-        # Cierre de la conexión SMTP
-        smtp.quit()
-    
-    elif fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 12) and cantidad_bitacoras < 12:
-
-        print(nombre_aprendiz,cantidad_bitacoras)
-        # Obtener los detalles del correo electrónico
-        msg = MIMEMultipart()
-        msg['From'] = 'astroc2208@gmail.com'
-        msg['To'] = destinatario, destinatario2
-        msg['Subject'] = 'Fomalización de citación a comité prendiz {nombre_aprendiz}'
-        body = f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la ultima bitacora, por lo que se solicita que formalice la citación a comité'
-        msg.attach(MIMEText(body, 'plain'))
-
-        # Conexión al servidor SMTP
-        smtp = smtplib.SMTP('smtp.gmail.com', 587)
-        smtp.starttls()
-
-        # Autenticación con tu correo y contraseña de aplicación
-        smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
-
-        # Envío del correo
-        smtp.send_message(msg)
-        print(f"El aprendiz {nombre_aprendiz} tiene menos de 5 bitacoras subidas y ya paso el tiempo de entrega de la sexta")
-
-        # Cierre de la conexión SMTP
-        smtp.quit()
-
-    else:
-        # Se verifica el nombre del aprendiz sobre el que se va a realizar la revisión
-        print(nombre_aprendiz)
-        # Iteración sobre las columnas de bitacora para verificar cual se ha enviado
-        for i in range(1, 13):
-
-            # Nombre de la columna de la bitacora que se esta revisando
-            columna_bitacora = f'B{i}'
-
-            # Calcular la fecha en la que se debe enviar la notificación
-            fecha_notificacion = fecha_inicio + timedelta(days=intervalo_dias * i)
-
-            # Verificar si subio la bitacora o no
-            estado_bitacora = df[columna_bitacora].iloc[index].strip().lower()
-
-            # Verificar si se debe enviar la notificación, comprando la fecha en la que debio subir la bitacora con la fecha actual y si la bitacora no ha sido enviada
-            if estado_bitacora == 'no' and fecha_notificacion <= fecha_actual:
-
-                # Verificar si se tiene un correo electrónico registrado
-                if destinatario:
-
-                    # Obtener los detalles del correo electrónico
-                    msg = MIMEMultipart()
-                    msg['From'] = 'astroc2208@gmail.com'
-                    msg['To'] = destinatario
-                    msg['Subject'] = f'Falta entrega de bitacora {i}'
-                    body = f'Por medio de este correo se le notifica que la bitacora {i} no ha sido entregada y debio haber sido subida el dia {fecha_notificacion}.'
-                    msg.attach(MIMEText(body, 'plain'))
-
-                    # Conexión al servidor SMTP
-                    smtp = smtplib.SMTP('smtp.gmail.com', 587)
-                    smtp.starttls()
-
-                    # Autenticación con tu correo y contraseña de aplicación
-                    smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
-
-                    # Envío del correo
-                    smtp.send_message(msg)
-                    print(f"Falta bitacora {i} que debia entregarce el {fecha_notificacion}, se ha enviado notificación a {destinatario}")
-
-                    # Cierre de la conexión SMTP
-                    smtp.quit()
-
-                else:
-                    print("No se encontró un correo electronico registrado")  
-                break
             else:
-                print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
+                # Se verifica el nombre del aprendiz sobre el que se va a realizar la revisión
+                print(nombre_aprendiz)
+                # Iteración sobre las columnas de bitacora para verificar cual se ha enviado
+                for i in range(1, 13):
 
-print("Proceso completado")
+                    # Nombre de la columna de la bitacora que se esta revisando
+                    columna_bitacora = f'B{i}'
+
+                    # Calcular la fecha en la que se debe enviar la notificación
+                    fecha_notificacion = fecha_inicio + timedelta(days=intervalo_dias * i)
+
+                    # Verificar si subio la bitacora o no
+                    estado_bitacora = df[columna_bitacora].iloc[index].strip().lower()
+
+                    # Verificar si se debe enviar la notificación, comprando la fecha en la que debio subir la bitacora con la fecha actual y si la bitacora no ha sido enviada
+                    if estado_bitacora == 'no' and fecha_notificacion <= fecha_actual:
+
+                        # Verificar si se tiene un correo electrónico registrado
+                        if destinatario:
+
+                            # Se envia correo al aprendiz
+                            enviar_correo_aprendiz(f'Falta entrega de bitacora {i}', f'Por medio de este correo se le notifica que la bitacora {i} no ha sido entregada y debio haber sido subida el dia {fecha_notificacion}.')
+                            print(f"Falta bitacora {i} que debia entregarce el {fecha_notificacion}, se ha enviado notificación a {destinatario}")
+
+                        else:
+                            print("No se encontró un correo electronico registrado")  
+                        break
+                    else:
+                        print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
+
+    # Funcion para enviar correo al instructor con copia al aprendiz
+    def enviar_correo_instructor(asunto, cuerpo):
+
+        # Obtener los detalles del correo electrónico
+            msg = MIMEMultipart()
+            msg['From'] = 'astroc2208@gmail.com'
+            msg['To'] = str(destinatario2)
+            msg['Cc'] = str(destinatario)
+            msg['Subject'] = asunto
+            body = cuerpo
+            msg.attach(MIMEText(body, 'plain'))
+
+            # Conexión al servidor SMTP
+            smtp = smtplib.SMTP('smtp.gmail.com', 587)
+            smtp.starttls()
+
+            # Autenticación con tu correo y contraseña de aplicación
+            smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
+
+            # Envío del correo
+            smtp.send_message(msg)
+            print(f"El aprendiz {nombre_aprendiz} tiene menos de 5 bitacoras subidas y ya paso el tiempo de entrega de la sexta")
+
+            # Cierre de la conexión SMTP
+            smtp.quit()
+
+    # funcion para enviar correo al aprendiz
+    def enviar_correo_aprendiz(asunto, cuerpo):
+
+        # Obtener los detalles del correo electrónico
+        msg = MIMEMultipart()
+        msg['From'] = 'astroc2208@gmail.com'
+        msg['To'] = destinatario
+        msg['Subject'] = asunto
+        body = cuerpo
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Conexión al servidor SMTP
+        smtp = smtplib.SMTP('smtp.gmail.com', 587)
+        smtp.starttls()
+
+        # Autenticación con tu correo y contraseña de aplicación
+        smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
+
+        # Envío del correo
+        smtp.send_message(msg)
+
+        # Cierre de la conexión SMTP
+        smtp.quit()
+
+    # Llamar a la función de requerimientos 2 y 4
+    requerimientos_2_4()
