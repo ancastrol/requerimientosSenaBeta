@@ -16,49 +16,7 @@ fecha_actual = datetime.now().date()
 # Número de días entre bitacoras
 intervalo_dias = 14
 
-for index, row in df.iterrows():
-
-    # Verificar si la fila está vacía
-    if pd.isna(row).all():
-        print("Se encontró una fila vacía, deteniendo la iteración.")
-        break
-    
-    # Se verifica si aprendiz eligio alternativa etapa productiva
-    etapa_productiva = [col for col in df.columns if 'Alternativa(Equipo Etapa Productiva)' in col]
-    alternativa = df[etapa_productiva[0]].iloc[index]    
-
-    # Hallar la columna y el valor del nombre del aprendiz
-    aprendiz = [col for col in df.columns if 'Aprendiz' in col]
-    nombre_aprendiz = df[aprendiz[0]].iloc[index]
-
-    # Hallar la columna y el valor del correo del aprendiz
-    correo_aprendiz = [col for col in df.columns if 'CorreoAprendiz' in col]
-    destinatario = df[correo_aprendiz[0]].iloc[index]
-
-    # Hallar la columna y el valor del correo del instructor
-    correo_instructor = [col for col in df.columns if 'instructor_seguimiento' in col]
-    destinatario2 = df[correo_instructor[0]].iloc[index]
-
-    # Hallar columna y valor de formato acta de inicio
-    acta_inicio = [col for col in df.columns if 'ActaInicio' in col]
-    acta_inicio_valor = df[acta_inicio[0]].iloc[index]
-
-    # Hallar la columna y el valor de Bitacoras
-    bitacoras = [col for col in df.columns if 'Bitacoras' in col]
-    cantidad_bitacoras = df[bitacoras[0]].iloc[index]
-
-    # Fecha en la que se inicio la etapa productiva
-    fecha_columna = [col for col in df.columns if 'Inicio_Ficha(Productiva)' in col]
-
-    # Se verifica la fecha de inicio de la etapa productiva y se convierte a tipo dateTime
-    if fecha_columna:
-        fecha_columna = df[fecha_columna[0]].iloc[index]
-        fecha_inicio = pd.to_datetime(fecha_columna).date()
-    else:
-        print("No se encontró una columna de fecha adecuada")
-        break
-
-    def requerimientos_2_4():
+def requerimientos_2_3():
                 
         if alternativa != 'NA':
             #  Se envia notificacion si no se ha entregado acta de inicio antes de una semana
@@ -115,40 +73,18 @@ for index, row in df.iterrows():
                         break
                     else:
                         print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
+        else:
+            # En esta parte se verificaria las fechas 2 y 3, es decir a los 12 y 18 meses de le fecha de inicio etapa productiva
+            print(f'El aprendiz {nombre_aprendiz} no eligio la alternativa de etapa productiva')
 
-    # Funcion para enviar correo al instructor con copia al aprendiz
-    def enviar_correo_instructor(asunto, cuerpo):
+# Funcion para enviar correo al instructor con copia al aprendiz
+def enviar_correo_instructor(asunto, cuerpo):
 
-        # Obtener los detalles del correo electrónico
-            msg = MIMEMultipart()
-            msg['From'] = 'astroc2208@gmail.com'
-            msg['To'] = str(destinatario2)
-            msg['Cc'] = str(destinatario)
-            msg['Subject'] = asunto
-            body = cuerpo
-            msg.attach(MIMEText(body, 'plain'))
-
-            # Conexión al servidor SMTP
-            smtp = smtplib.SMTP('smtp.gmail.com', 587)
-            smtp.starttls()
-
-            # Autenticación con tu correo y contraseña de aplicación
-            smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
-
-            # Envío del correo
-            smtp.send_message(msg)
-            print(f"El aprendiz {nombre_aprendiz} tiene menos de 5 bitacoras subidas y ya paso el tiempo de entrega de la sexta")
-
-            # Cierre de la conexión SMTP
-            smtp.quit()
-
-    # funcion para enviar correo al aprendiz
-    def enviar_correo_aprendiz(asunto, cuerpo):
-
-        # Obtener los detalles del correo electrónico
+    # Obtener los detalles del correo electrónico
         msg = MIMEMultipart()
         msg['From'] = 'astroc2208@gmail.com'
-        msg['To'] = destinatario
+        msg['To'] = str(destinatario2)
+        msg['Cc'] = str(destinatario)
         msg['Subject'] = asunto
         body = cuerpo
         msg.attach(MIMEText(body, 'plain'))
@@ -162,9 +98,76 @@ for index, row in df.iterrows():
 
         # Envío del correo
         smtp.send_message(msg)
+        print(f"El aprendiz {nombre_aprendiz} tiene menos de 5 bitacoras subidas y ya paso el tiempo de entrega de la sexta")
 
         # Cierre de la conexión SMTP
         smtp.quit()
 
+# funcion para enviar correo al aprendiz
+def enviar_correo_aprendiz(asunto, cuerpo):
+
+    # Obtener los detalles del correo electrónico
+    msg = MIMEMultipart()
+    msg['From'] = 'astroc2208@gmail.com'
+    msg['To'] = destinatario
+    msg['Subject'] = asunto
+    body = cuerpo
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Conexión al servidor SMTP
+    smtp = smtplib.SMTP('smtp.gmail.com', 587)
+    smtp.starttls()
+
+    # Autenticación con tu correo y contraseña de aplicación
+    smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
+
+    # Envío del correo
+    smtp.send_message(msg)
+
+    # Cierre de la conexión SMTP
+    smtp.quit()
+
+for index, row in df.iterrows():
+
+    # Verificar si la fila está vacía
+    if pd.isna(row).all():
+        print("Se encontró una fila vacía, deteniendo la iteración.")
+        break
+    
+    # Se verifica si aprendiz eligio alternativa etapa productiva
+    etapa_productiva = [col for col in df.columns if 'Alternativa(Equipo Etapa Productiva)' in col]
+    alternativa = df[etapa_productiva[0]].iloc[index]    
+
+    # Hallar la columna y el valor del nombre del aprendiz
+    aprendiz = [col for col in df.columns if 'Aprendiz' in col]
+    nombre_aprendiz = df[aprendiz[0]].iloc[index]
+
+    # Hallar la columna y el valor del correo del aprendiz
+    correo_aprendiz = [col for col in df.columns if 'CorreoAprendiz' in col]
+    destinatario = df[correo_aprendiz[0]].iloc[index]
+
+    # Hallar la columna y el valor del correo del instructor
+    correo_instructor = [col for col in df.columns if 'instructor_seguimiento' in col]
+    destinatario2 = df[correo_instructor[0]].iloc[index]
+
+    # Hallar columna y valor de formato acta de inicio
+    acta_inicio = [col for col in df.columns if 'ActaInicio' in col]
+    acta_inicio_valor = df[acta_inicio[0]].iloc[index]
+
+    # Hallar la columna y el valor de Bitacoras
+    bitacoras = [col for col in df.columns if 'Bitacoras' in col]
+    cantidad_bitacoras = df[bitacoras[0]].iloc[index]
+
+    # Fecha en la que se inicio la etapa productiva
+    fecha_columna = [col for col in df.columns if 'Inicio_Ficha(Productiva)' in col]
+
+    # Se verifica la fecha de inicio de la etapa productiva y se convierte a tipo dateTime
+    if fecha_columna:
+        fecha_columna = df[fecha_columna[0]].iloc[index]
+        fecha_inicio = pd.to_datetime(fecha_columna).date()
+    else:
+        print("No se encontró una columna de fecha adecuada")
+        break
+
     # Llamar a la función de requerimientos 2 y 4
-    requerimientos_2_4()
+    requerimientos_2_3()
