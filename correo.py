@@ -19,13 +19,20 @@ intervalo_dias = 14
 def requerimientos_2_3():
                 
         if alternativa != 'NA':
+
             #  Se envia notificacion si no se ha entregado acta de inicio antes de una semana
             if fecha_actual < fecha_inicio + timedelta(days=7) and acta_inicio_valor == 'NO':
+
                 #se envia un correo al aprendiz
                 enviar_correo_aprendiz(f'Flata acta de inicio por entregar', f'Por medio de este correo se le recuerda que no ha entregado acta de inicio, se le recuerda que si no la entrega antres de {fecha_inicio + timedelta(days=7)} se formalizara la citación a comite.')
                 print(f'Falta acta de inicio por entregar, se ha enviado notificación a {destinatario}')
 
             elif fecha_actual > fecha_inicio + timedelta(days=7) and acta_inicio_valor == 'NO':
+
+                # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
+                df.at[index, 'COMITÉ'] = 'pendiente'
+                df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
+
                 #se envia un correo al instructor
                 enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} no ha entregado el acta de inicio y ya ha pasado el tiempo de entrega, por lo que se solicita que formalice la citación a comité.')
                 print(f'Falta acta de inicio por entregar y ya ha pasado una semana, se ha enviado notificación de formalizacion a comite a {destinatario2}')
@@ -33,11 +40,19 @@ def requerimientos_2_3():
             # Verificar que la fecha actual no sea mayor a la fecha de entrega de la sexta bitacora
             if fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 6) and cantidad_bitacoras < 5:
 
+                # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
+                df.at[index, 'COMITÉ'] = 'pendiente'
+                df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
+
                 print(nombre_aprendiz,cantidad_bitacoras)
                 # Enviar correo al instructor con copia al aprendiz
                 enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité.')
             
             elif fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 12) and cantidad_bitacoras < 12:
+
+                # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
+                df.at[index, 'COMITÉ'] = 'pendiente'
+                df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
 
                 print(nombre_aprendiz,cantidad_bitacoras)
                 # Enviar correo al instructor con copia al aprendiz
@@ -74,8 +89,11 @@ def requerimientos_2_3():
                     else:
                         print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
         else:
-            # En esta parte se verificaria las fechas 2 y 3, es decir a los 12 y 18 meses de le fecha de inicio etapa productiva
-            print(f'El aprendiz {nombre_aprendiz} no eligio la alternativa de etapa productiva')
+            # En esta parte se verificaria las fechas 2 y 3, es decir a los 12 y 18 meses de le fecha de inicio etapa productiva.
+            fecha_12_meses = fecha_inicio + timedelta(days=365)
+            # if fecha_actual > fecha_12_meses:
+            print(fecha_12_meses)
+
 
 # Funcion para enviar correo al instructor con copia al aprendiz
 def enviar_correo_instructor(asunto, cuerpo):
