@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from dateutil.relativedelta import relativedelta
 
 # Leer la base de datos de Excel
 df = pd.read_excel(r'C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx')
@@ -16,7 +17,25 @@ fecha_actual = datetime.now().date()
 # Número de días entre bitacoras
 intervalo_dias = 14
 
-def requerimientos_2_3():
+
+def requerimiento_1():
+    # Filtrar fichas que han pasado 12 y 18 meses
+    fichas_12_meses = df[df['Fin_Ficha (Productiva)'] <= fecha_actual - relativedelta(months=12)]
+    fichas_18_meses = df[df['Fin_Ficha (Productiva)'] <= fecha_actual - relativedelta(months=18)]
+
+    # Eliminar duplicados basados en la columna 'Ficha'
+    fichas_12_meses = fichas_12_meses.drop_duplicates(subset=['Ficha'])
+    fichas_18_meses = fichas_18_meses.drop_duplicates(subset=['Ficha'])
+
+    # Solo guardar la columna 'Ficha'
+    fichas_12_meses = fichas_12_meses[['Ficha']]
+    fichas_18_meses = fichas_18_meses[['Ficha']]
+
+    # Guardar en archivos Excel separados
+    fichas_12_meses.to_excel('fichas_12_meses.xlsx', index=False)
+    fichas_18_meses.to_excel('fichas_18_meses.xlsx', index=False)
+
+def requerimientos_2_3_4():
                 
         if alternativa != 'NA':
 
@@ -31,69 +50,84 @@ def requerimientos_2_3():
 
                 # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
                 df.at[index, 'COMITÉ'] = 'pendiente'
-                df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
 
                 #se envia un correo al instructor
                 enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} no ha entregado el acta de inicio y ya ha pasado el tiempo de entrega, por lo que se solicita que formalice la citación a comité.')
                 print(f'Falta acta de inicio por entregar y ya ha pasado una semana, se ha enviado notificación de formalizacion a comite a {destinatario2}')
 
-            # Verificar que la fecha actual no sea mayor a la fecha de entrega de la sexta bitacora
-            if fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 6) and cantidad_bitacoras < 5:
-
-                # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
-                df.at[index, 'COMITÉ'] = 'pendiente'
-                df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
-
-                print(nombre_aprendiz,cantidad_bitacoras)
-                # Enviar correo al instructor con copia al aprendiz
-                enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité.')
-            
-            elif fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 12) and cantidad_bitacoras < 12:
-
-                # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
-                df.at[index, 'COMITÉ'] = 'pendiente'
-                df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
-
-                print(nombre_aprendiz,cantidad_bitacoras)
-                # Enviar correo al instructor con copia al aprendiz
-                enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la bitacora 12, por lo que se solicita que formalice la citación a comité.')
-
             else:
-                # Se verifica el nombre del aprendiz sobre el que se va a realizar la revisión
-                print(nombre_aprendiz)
-                # Iteración sobre las columnas de bitacora para verificar cual se ha enviado
-                for i in range(1, 13):
+                # Verificar que la fecha actual no sea mayor a la fecha de entrega de la sexta bitacora
+                if fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 6) and cantidad_bitacoras < 5:
 
-                    # Nombre de la columna de la bitacora que se esta revisando
-                    columna_bitacora = f'B{i}'
+                    # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
+                    df.at[index, 'COMITÉ'] = 'pendiente'
 
-                    # Calcular la fecha en la que se debe enviar la notificación
-                    fecha_notificacion = fecha_inicio + timedelta(days=intervalo_dias * i)
+                    print(nombre_aprendiz,cantidad_bitacoras)
+                    # Enviar correo al instructor con copia al aprendiz
+                    enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité.')
+                
+                elif fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 12) and cantidad_bitacoras < 12:
 
-                    # Verificar si subio la bitacora o no
-                    estado_bitacora = df[columna_bitacora].iloc[index].strip().lower()
+                    # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
+                    df.at[index, 'COMITÉ'] = 'pendiente'
 
-                    # Verificar si se debe enviar la notificación, comprando la fecha en la que debio subir la bitacora con la fecha actual y si la bitacora no ha sido enviada
-                    if estado_bitacora == 'no' and fecha_notificacion <= fecha_actual:
+                    print(nombre_aprendiz,cantidad_bitacoras)
+                    # Enviar correo al instructor con copia al aprendiz
+                    enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la bitacora 12, por lo que se solicita que formalice la citación a comité.')
 
-                        # Verificar si se tiene un correo electrónico registrado
-                        if destinatario:
+                else:
+                    # Se verifica el nombre del aprendiz sobre el que se va a realizar la revisión
+                    print(nombre_aprendiz)
+                    # Iteración sobre las columnas de bitacora para verificar cual se ha enviado
+                    for i in range(1, 13):
 
-                            # Se envia correo al aprendiz
-                            enviar_correo_aprendiz(f'Falta entrega de bitacora {i}', f'Por medio de este correo se le notifica que la bitacora {i} no ha sido entregada y debio haber sido subida el dia {fecha_notificacion}.')
-                            print(f"Falta bitacora {i} que debia entregarce el {fecha_notificacion}, se ha enviado notificación a {destinatario}")
+                        # Nombre de la columna de la bitacora que se esta revisando
+                        columna_bitacora = f'B{i}'
 
+                        # Calcular la fecha en la que se debe enviar la notificación
+                        fecha_notificacion = fecha_inicio + timedelta(days=intervalo_dias * i)
+
+                        # Verificar si subio la bitacora o no
+                        estado_bitacora = df[columna_bitacora].iloc[index].strip().lower()
+
+                        # Verificar si se debe enviar la notificación, comprando la fecha en la que debio subir la bitacora con la fecha actual y si la bitacora no ha sido enviada
+                        if estado_bitacora == 'no' and fecha_notificacion <= fecha_actual:
+
+                            # Verificar si se tiene un correo electrónico registrado
+                            if destinatario:
+
+                                # Se envia correo al aprendiz
+                                enviar_correo_aprendiz(f'Falta entrega de bitacora {i}', f'Por medio de este correo se le notifica que la bitacora {i} no ha sido entregada y debio haber sido subida el dia {fecha_notificacion}.')
+                                print(f"Falta bitacora {i} que debia entregarce el {fecha_notificacion}, se ha enviado notificación a {destinatario}")
+
+                            else:
+                                print("No se encontró un correo electronico registrado")  
+                            break
                         else:
-                            print("No se encontró un correo electronico registrado")  
-                        break
-                    else:
-                        print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
+                            print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
         else:
             # En esta parte se verificaria las fechas 2 y 3, es decir a los 12 y 18 meses de le fecha de inicio etapa productiva.
             fecha_12_meses = fecha_inicio + timedelta(days=365)
-            # if fecha_actual > fecha_12_meses:
-            print(fecha_12_meses)
 
+            if fecha_actual > fecha_12_meses:
+                enviar_correo_aprendiz(f'No se ha elegido etapa productiva en el tiempo establecido', f'Por medio de este correo se le notifica que el dia {fecha_12_meses} se acabo el plazo para elegir una alternativa de etapa productiva, pues ya han pasado 12 meses desde la finalización de etapa lectiva y ya no le queda plazo de completarla, por lo que se iniciara proceso de deserción, si desea revertir esto haga envio de evidencias a su instructor de seguimiento al correo: {destinatario2}.')
+                print(f'No se ha elegido etapa productiva en el tiempo establecido, se ha enviado notificación a {destinatario}')
+
+            else:
+                # Se verifica cuando fue la ultima vez que se envio correo, si ya cumple los 15 dias sin elegir etapa productiva se envia correo
+                if pd.isna(fecha_envio) and fecha_actual > fecha_inicio + timedelta(days=14):
+                    enviar_correo_aprendiz(f'Recordatorio alternativa etapa productiva', f'Por medio de este correo se le recuerda que debe elegir una alternativa de etapa productiva antes de {fecha_12_meses}, de otro modo no alcanzara a completar la misma y se le iniciara proceso de deserción.')
+                    print(f'Recordatorio alternativa etapa productiva, se ha enviado notificación a {destinatario}')
+                    df.at[index, 'Fecha_Envio'] = fecha_actual
+
+                elif fecha_actual > fecha_envio + timedelta(days=14):
+                    fecha_envio = fecha_actual
+                    enviar_correo_aprendiz(f'Recordatorio alternativa etapa productiva', f'Por medio de este correo se le recuerda que debe elegir una alternativa de etapa productiva antes de {fecha_12_meses}, de otro modo no alcanzara a completar la misma y se le iniciara proceso de deserción.')
+                    print(f'Recordatorio alternativa etapa productiva, se ha enviado notificación a {destinatario}')
+                    df.at[index, 'Fecha_Envio'] = fecha_actual
+
+        # Guardar los cambios en el archivo de Excel
+        df.to_excel('C:/Sena/Programacion de Software/Etapa productiva/requerimientosSenaBeta/requerimientosSenaBeta/Sources/prototiposSeguimiento.xlsx', index=False)
 
 # Funcion para enviar correo al instructor con copia al aprendiz
 def enviar_correo_instructor(asunto, cuerpo):
@@ -145,6 +179,12 @@ def enviar_correo_aprendiz(asunto, cuerpo):
     # Cierre de la conexión SMTP
     smtp.quit()
 
+
+
+# llamar a la función de requerimiento 1, solo se necesita una vez por eso esta fuera del ciclo
+requerimiento_1()
+
+# Iterar sobre las filas del DataFrame, esto se realiza ya que necesitamos recorrer cada fila para verificar si se cumple con los requerimientos
 for index, row in df.iterrows():
 
     # Verificar si la fila está vacía
@@ -176,6 +216,9 @@ for index, row in df.iterrows():
     bitacoras = [col for col in df.columns if 'Bitacoras' in col]
     cantidad_bitacoras = df[bitacoras[0]].iloc[index]
 
+    # Se saca la ultima fecha en que se envio correo
+    fecha_envio = row['correo_verificacion']
+
     # Fecha en la que se inicio la etapa productiva
     fecha_columna = [col for col in df.columns if 'Inicio_Ficha(Productiva)' in col]
 
@@ -187,5 +230,5 @@ for index, row in df.iterrows():
         print("No se encontró una columna de fecha adecuada")
         break
 
-    # Llamar a la función de requerimientos 2 y 4
-    requerimientos_2_3()
+    # Llamar a la función de requerimientos 2, 3 y 4, se necesita para cada aprendiz por esto esta dentro del ciclo
+    requerimientos_2_3_4()
