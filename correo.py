@@ -19,9 +19,16 @@ intervalo_dias = 14
 
 
 def requerimiento_1():
+
+    # Convertir la columna de fecha en un formato datetime
+    df['Inicio_Ficha(Productiva)'] = pd.to_datetime(df['Inicio_Ficha(Productiva)'])
+
+    # Obtener la fecha actual
+    fecha_actual = pd.to_datetime('today')
+
     # Filtrar fichas que han pasado 12 y 18 meses
-    fichas_12_meses = df[df['Fin_Ficha (Productiva)'] <= fecha_actual - relativedelta(months=12)]
-    fichas_18_meses = df[df['Fin_Ficha (Productiva)'] <= fecha_actual - relativedelta(months=18)]
+    fichas_12_meses = df[df['Inicio_Ficha(Productiva)'] + relativedelta(months=12) <= fecha_actual]
+    fichas_18_meses = df[df['Inicio_Ficha(Productiva)'] + relativedelta(months=18) <= fecha_actual]
 
     # Eliminar duplicados basados en la columna 'Ficha'
     fichas_12_meses = fichas_12_meses.drop_duplicates(subset=['Ficha'])
@@ -62,7 +69,6 @@ def requerimientos_2_3_4():
                     # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
                     df.at[index, 'COMITÉ'] = 'pendiente'
 
-                    print(nombre_aprendiz,cantidad_bitacoras)
                     # Enviar correo al instructor con copia al aprendiz
                     enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité.')
                 
@@ -71,7 +77,6 @@ def requerimientos_2_3_4():
                     # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
                     df.at[index, 'COMITÉ'] = 'pendiente'
 
-                    print(nombre_aprendiz,cantidad_bitacoras)
                     # Enviar correo al instructor con copia al aprendiz
                     enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la bitacora 12, por lo que se solicita que formalice la citación a comité.')
 
@@ -107,7 +112,8 @@ def requerimientos_2_3_4():
                             print(f'{columna_bitacora} ya fue enviada o el aprendiz tiene tiempo de enviarla hasta {fecha_notificacion}.')
         else:
             # En esta parte se verificaria las fechas 2 y 3, es decir a los 12 y 18 meses de le fecha de inicio etapa productiva.
-            fecha_12_meses = fecha_inicio + timedelta(days=365)
+            fecha_12_meses = fecha_inicio + relativedelta(months=12)
+            print(fecha_12_meses)
 
             if fecha_actual > fecha_12_meses:
                 enviar_correo_aprendiz(f'No se ha elegido etapa productiva en el tiempo establecido', f'Por medio de este correo se le notifica que el dia {fecha_12_meses} se acabo el plazo para elegir una alternativa de etapa productiva, pues ya han pasado 12 meses desde la finalización de etapa lectiva y ya no le queda plazo de completarla, por lo que se iniciara proceso de deserción, si desea revertir esto haga envio de evidencias a su instructor de seguimiento al correo: {destinatario2}.')
@@ -179,10 +185,8 @@ def enviar_correo_aprendiz(asunto, cuerpo):
     # Cierre de la conexión SMTP
     smtp.quit()
 
-
-
 # llamar a la función de requerimiento 1, solo se necesita una vez por eso esta fuera del ciclo
-requerimiento_1()
+# requerimiento_1()
 
 # Iterar sobre las filas del DataFrame, esto se realiza ya que necesitamos recorrer cada fila para verificar si se cumple con los requerimientos
 for index, row in df.iterrows():
@@ -192,6 +196,7 @@ for index, row in df.iterrows():
         print("Se encontró una fila vacía, deteniendo la iteración.")
         break
     
+
     # Se verifica si aprendiz eligio alternativa etapa productiva
     etapa_productiva = [col for col in df.columns if 'Alternativa(Equipo Etapa Productiva)' in col]
     alternativa = df[etapa_productiva[0]].iloc[index]    
