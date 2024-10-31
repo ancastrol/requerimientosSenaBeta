@@ -2,6 +2,15 @@ import streamlit as st
 import pandas as pd
 from PyPDF2 import PdfMerger
 import io
+from datetime import datetime, timedelta
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from dateutil.relativedelta import relativedelta
+
+# Leer excel prueba 
+df = pd.read_excel(r'Sources/prototiposSeguimiento.xlsx')
 
 # Inicialización del estado de sesión
 if 'vista_actual' not in st.session_state:
@@ -105,16 +114,103 @@ def mostrar_aprendiz():
     st.title('Consolidado PDF')
     mostrar_formulario_pdf()
 
-# Funcion para unir PDFs
-def unir_pdfs(archivos_pdf):
 
-    # Genera un objeto PdfMerger para unir los PDFs
+# Función para enviar correo al instructor con copia al aprendiz y adjunto
+def enviar_correo_instructor(asunto, cuerpo, archivo_pdf, nombre_archivo):
+
+    # Obtener el destinatarios del correo electrónico
+    destinatario = df['instructor_seguimiento'].iloc[0]
+    destinatario2 = df['CorreoAprendiz'].iloc[0]
+
+    # Obtener los detalles del correo electrónico
+    msg = MIMEMultipart()
+    msg['From'] = 'astroc2208@gmail.com'
+    msg['To'] = str(destinatario)
+    msg['Cc'] = str(destinatario2)
+    msg['Subject'] = asunto
+    msg.attach(MIMEText(cuerpo, 'plain'))
+
+    # Adjuntar el archivo PDF
+    adjunto = MIMEApplication(archivo_pdf.getvalue(), _subtype="pdf")
+    adjunto.add_header('Content-Disposition', 'attachment', filename = nombre_archivo)
+    msg.attach(adjunto)
+
+    # Conexión al servidor SMTP
+    smtp = smtplib.SMTP('smtp.gmail.com', 587)
+    smtp.starttls()
+
+    # Autenticación con tu correo y contraseña de aplicación
+    smtp.login('astroc2208@gmail.com', 'jsgm gpyz gakh ywop')
+
+    # Envío del correo
+    smtp.send_message(msg)
+
+    # Cierre de la conexión SMTP
+    smtp.quit()
+
+# Función para verificar si la ficha se encuentra y si corresponde a un tecnólogo
+def verificar_ficha_tecnologo(df, numero_ficha):
+    # Verificar si el DataFrame no esta vacio
+    if df is None:
+        return False
+    
+    # Convertir la columna de ficha a string para comparación
+    df['Ficha'] = df['Ficha'].astype(str)
+    
+    # Buscar la ficha en el DataFrame
+    ficha_encontrada = df[df['Ficha'] == str(numero_ficha)]
+    
+    if len(ficha_encontrada) > 0:
+        # Devolver el valor de Es_Tecnologo
+        print(ficha_encontrada['Tipo'].iloc[0])
+        return ficha_encontrada['Tipo'].iloc[0]
+    else:
+        st.warning(f"Ficha {numero_ficha} no encontrada en el registro")
+        return False
+    
+# Funcion para unir PDFs, tiene en cuenta que el TyT de haberlo va antes del ultimo documento
+def unir_pdfs_con_orden(archivos_pdf, es_tecnologo):
     merger = PdfMerger()
-
+    
+    # Si es tecnólogo, separar el documento de tecnólogo
+    doc_tecnologo = None
+    otros_docs = []
+    
     for archivo in archivos_pdf:
         if archivo is not None:
+            # Si es el documento de tecnólogo, se guarda aparte
+            if "Certificación Pruebas TyT" in str(archivo.name):
+                doc_tecnologo = archivo
+            else:
+                otros_docs.append(archivo)
+    
+    # Si es tecnólogo y hay más de un documento
+    if es_tecnologo and len(otros_docs) > 1:
+        # Unir todos los documentos excepto el último
+        for archivo in otros_docs[:-1]:
             pdf_bytes = io.BytesIO(archivo.getvalue())
             merger.append(pdf_bytes)
+        
+        # Insertar documento de tecnólogo antes del último
+        if doc_tecnologo:
+            pdf_bytes_tecnologo = io.BytesIO(doc_tecnologo.getvalue())
+            merger.append(pdf_bytes_tecnologo)
+        
+        # Agregar el último documento
+        pdf_bytes_ultimo = io.BytesIO(otros_docs[-1].getvalue())
+        merger.append(pdf_bytes_ultimo)
+    else:
+        # Si no es tecnólogo o hay pocos documentos, unir normalmente
+        for archivo in otros_docs:
+            pdf_bytes = io.BytesIO(archivo.getvalue())
+            merger.append(pdf_bytes)
+        
+        # Agregar documento de tecnólogo al final si existe
+        if es_tecnologo and doc_tecnologo:
+            pdf_bytes_tecnologo = io.BytesIO(doc_tecnologo.getvalue())
+            merger.append(pdf_bytes_tecnologo)
+    
+    # Se crea el PDF final
     output = io.BytesIO()
     merger.write(output)
     output.seek(0)
@@ -122,24 +218,34 @@ def unir_pdfs(archivos_pdf):
 
 # Función para mostrar/crear el formulario de subida de PDFs
 def mostrar_formulario_pdf():
-    st.write('Suba los archivos PDF en el campo correspondiente.')
+    st.write('Suba los archivos PDF en el campo correspondiente, al oprimir el boton "Consolidar PDFs" se uniran los archivos en un solo PDF y se enviará al instructor.')
     col1, col2 = st.columns(2)
 
     with col1:
         fichaPdf = st.text_input("Introduzca el número de ficha del aprendiz:")
     with col2:
         nombrePdf = st.text_input("Introduzca nombre del aprendiz:")
+    
+    # Verificar si es tecnólogo
+    es_tecnologo = verificar_ficha_tecnologo(df, fichaPdf) == 'Tecnólogo'
         
     archivos = []
-    documentos = [
+        # Documentos base
+    documentos_base = [
         "F-023(final)",
         "Agencia Publica de Empleo",
         "Paz y Salvo Academico",
         "Copia del Documento de Identidad",
         "Certificación empresa",
-        "Para tecnólogos: Certificación Pruebas TyT",  # Este es opcional
         "Formato de Entrega de Documentos"
     ]
+    
+    # Definir documentos a mostrar dinámicamente
+    documentos = documentos_base.copy()
+    
+    # Agregar o quitar el documento opcional según la selección
+    if es_tecnologo:
+        documentos.append("Certificación Pruebas TyT")
     
     # Se crea un diccionario para almacenar los archivos y así tener en cuenta cuáles han sido subidos
     archivos_subidos = {}
@@ -147,18 +253,13 @@ def mostrar_formulario_pdf():
     # Crear esoacio donde se mostrara el estado de los archivos, es decir cuales se han subido y si son obligatorios
     estado_archivos = st.empty()
     
-    # En esta variable se almacenará el nombre del documento opcional
-    documento_opcional = "Para tecnólogos: Certificación Pruebas TyT"
-    
     # Crear y mostrar los campos para subir archivos
     for nombre in documentos:
-        es_opcional = nombre == documento_opcional
-        label = f"{nombre} {'(Opcional)' if es_opcional else '(Obligatorio)'}"
-        archivo = st.file_uploader(label, type=["pdf"], key=f"upload_{nombre}")
+        archivo = st.file_uploader(nombre, type=["pdf"], key=f"upload_{nombre}")
         archivos_subidos[nombre] = archivo
         
     # Verificar documentos obligatorios
-    documentos_obligatorios = [doc for doc in documentos if doc != documento_opcional]
+    documentos_obligatorios = [doc for doc in documentos]
     documentos_faltantes = [doc for doc in documentos_obligatorios if archivos_subidos[doc] is None]
     
     # Actualizar el estado de los archivos
@@ -178,15 +279,17 @@ def mostrar_formulario_pdf():
                 # Mostrar barra de progreso
                 with st.spinner('Uniendo PDFs...'):
                     # Unir los PDFs
-                    pdf_final = unir_pdfs(archivos_para_unir)
+                    pdf_final = unir_pdfs_con_orden(archivos_para_unir, es_tecnologo)
+                    nombre_archivo = f"{fichaPdf} {nombrePdf}.pdf"
+                    enviar_correo_instructor(f'Consolidado Aprendiz {nombrePdf}', f'El aprendiz {nombrePdf} ha subido los documentos requeridos para la finalización de la etapa productiva.', pdf_final, nombre_archivo)
                     # Ofrecer el archivo para descargar
                     st.download_button(
                         label="Descargar PDF Consolidado",
                         data=pdf_final,
-                        file_name=f"{fichaPdf} {nombrePdf}.pdf",
+                        file_name = nombre_archivo,
                         mime="application/pdf"
                     )
-                st.success('¡PDFs unidos exitosamente!')
+                st.success('El archivo consolidado se ha enviado al instructor exitosamente')
             except Exception as e:
                 st.error(f'Error al unir los PDFs: {str(e)}')
         else:
