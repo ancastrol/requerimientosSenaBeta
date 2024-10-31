@@ -162,7 +162,6 @@ def verificar_ficha_tecnologo(df, numero_ficha):
     
     if len(ficha_encontrada) > 0:
         # Devolver el valor de Es_Tecnologo
-        print(ficha_encontrada['Tipo'].iloc[0])
         return ficha_encontrada['Tipo'].iloc[0]
     else:
         st.warning(f"Ficha {numero_ficha} no encontrada en el registro")
