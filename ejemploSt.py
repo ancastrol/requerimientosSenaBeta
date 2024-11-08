@@ -8,6 +8,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from dateutil.relativedelta import relativedelta
+from docx import Document
+import os
+from zipfile import ZipFile
+import tempfile
+from tqdm import tqdm
 
 # Leer excel prueba 
 df = pd.read_excel(r'Sources/prototiposSeguimiento.xlsx')
@@ -15,6 +20,68 @@ df = pd.read_excel(r'Sources/prototiposSeguimiento.xlsx')
 # Inicialización del estado de sesión
 if 'vista_actual' not in st.session_state:
     st.session_state.vista_actual = 'inicio'
+
+# Recibe los documentos excel y word y regresa un zip con los documentos word llenos
+def procesar_documentos(df, plantilla_word):
+
+    # Crear un archivo ZIP en memoria
+    zip_archivo = io.BytesIO()
+    
+    with ZipFile(zip_archivo, 'w') as zip_file:
+
+        # Contador de documentos procesados
+        documentos_exitosos = 0
+        errores = []
+        
+        # Usar plantilla desde bytes
+        plantilla_temp = io.BytesIO(plantilla_word)
+        
+        # Procesar cada aprendiz
+        for index, aprendiz in df.iterrows():
+            try:
+                # Cargar la plantilla para cada aprendiz
+                doc = Document(plantilla_temp)
+                plantilla_temp.seek(0)  # Pone el "puntero" al inicio del archivo
+                
+                # Reemplazar los marcadores en el documento
+                for paragraph in doc.paragraphs:
+                    for run in paragraph.runs:
+                        texto = run.text
+                        for columna in df.columns:
+                            marcador = '{' + columna.upper() + '}'
+                            if marcador in texto:
+                                texto = texto.replace(marcador, str(aprendiz[columna]))
+                        run.text = texto
+                
+                # También buscar en las tablas
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            for paragraph in cell.paragraphs:
+                                for run in paragraph.runs:
+                                    texto = run.text
+                                    for columna in df.columns:
+                                        marcador = '{' + columna.upper() + '}'
+                                        if marcador in texto:
+                                            texto = texto.replace(marcador, str(aprendiz[columna]))
+                                    run.text = texto
+                
+                # Guardar documento en memoria
+                doc_temp = io.BytesIO()
+                doc.save(doc_temp)
+                doc_temp.seek(0)
+                
+                # Generar nombre único para el archivo
+                nombre_archivo = f"{aprendiz['Nombre']}_{aprendiz['Apellidos']}_{'acta de inicio'}.docx"
+                
+                # Añadir al ZIP
+                zip_file.writestr(nombre_archivo, doc_temp.getvalue())
+                documentos_exitosos += 1
+                
+            except Exception as e:
+                errores.append(f"Error procesando aprendiz {aprendiz['Nombre']} {aprendiz['Apellidos']}: {str(e)}")
+    
+    return zip_archivo, documentos_exitosos, errores
 
 # Función para cambiar la vista actual de la aplicación
 def cambiar_vista(nueva_vista):
@@ -47,7 +114,7 @@ def mostrar_instructor():
     st.sidebar.title("Menú desplegable")
     opcion = st.sidebar.selectbox(
         'Elige una opción:',
-        ('Pantalla inicial', 'Consolidado PDF', 'Opción 2')
+        ('Pantalla inicial', 'Consolidado PDF', 'Cruce de correspondencia')
     )
     
     if opcion == 'Pantalla inicial':
@@ -67,43 +134,86 @@ def mostrar_instructor():
     elif opcion == 'Consolidado PDF':
         mostrar_formulario_pdf()
 
-    elif opcion == 'Opción 2':
-        st.subheader('Pagina para probar diversos widgets de Streamlit')
+    elif opcion == 'Cruce de correspondencia':
 
-        # Control deslizante
-        st.markdown('**Este es un control deslizante, se podria usar para seleccionar que cantidad de estudiantes se requiere filtrar**')
-        valor = st.slider('Selecciona un valor:', 0, 100, 50)
-        st.write('El valor seleccionado es:', valor)
-
-        # Selector de fechas
-        st.markdown('**Este es un selector de fechas, se podria usar para seleccionar una fecha de corte par alguna entrega o inicio de etapa productiva**')
-        fecha = st.date_input('Elige una fecha')
-        st.write('Fecha seleccionada:', fecha)
-
-        # Crear un DataFrame
-        df = pd.DataFrame({
-            'Nombre': ['Juan', 'Ana', 'Luis', 'Sofía', 'Pedro'],
-            'Edad': [23, 30, 21, 24, 28],
-            'Ciudad': ['Bogotá', 'Medellín', 'Cali', 'Bogotá', 'Medellín']
-        })
-
-        #Añadir la opcion ver todo
-        filtros_posibles = ['Ver todos'] + list(df['Ciudad'].unique())
-
-        # Crear un filtro interactivo
-        st.markdown('**Este es un filtro interactivo, se podria usar para seleccionar algun aspecto especifico que se requiera de los aprendices**')
-        ciudad_filtrada = st.selectbox("Selecciona la ciudad", filtros_posibles)
-
-        # Filtrar el DataFrame solo si no se selecciona "Ver todos"
-        if ciudad_filtrada == 'Ver todos':
-            df_filtrado = df
-        else:
-            df_filtrado = df[df['Ciudad'] == ciudad_filtrada]
-
+        st.title("🎓 Generador de Documentos para Aprendices")
         
-        # Mostrar el resultado filtrado
-        st.markdown('**Así se puede ver los dataframe previamente hechos directamente desde pandas**')
-        st.dataframe(df_filtrado)
+        # Agregar información de uso
+        with st.expander("ℹ️ Instrucciones de uso"):
+            st.markdown("""
+            1. **Preparación del Excel:**
+            * Asegúrate de que tu Excel tenga encabezados claros
+            * Cada columna debe corresponder a un marcador en la plantilla Word
+            
+            2. **Preparación de la Plantilla Word:**
+            * Usa marcadores entre llaves, ejemplo: {NOMBRE}, {APELLIDO}
+            * Los marcadores deben coincidir con los nombres de las columnas del Excel
+            
+            3. **Proceso:**
+            * Sube tu archivo Excel con los datos
+            * Sube tu plantilla Word
+            * Haz clic en 'Generar Documentos'
+            * Descarga el archivo ZIP con todos los documentos generados
+            """)
+        
+        # Columnas para la carga de archivos
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("📊 Archivo Excel")
+            excel_file = st.file_uploader("Sube tu archivo Excel", type=['xlsx', 'xls'])
+            
+            if excel_file is not None:
+                try:
+                    df = pd.read_excel(excel_file)
+                    st.success(f"✅ Excel cargado exitosamente - {len(df)} registros encontrados")
+                    
+                    # Mostrar vista previa de los datos
+                    with st.expander("👀 Vista previa de datos"):
+                        st.dataframe(df.head())
+                    
+                    # Mostrar los marcadores disponibles
+                    st.info("🔍 Marcadores disponibles:")
+                    marcadores = [f"{{{col.upper()}}}" for col in df.columns]
+                    st.code(", ".join(marcadores))
+                except Exception as e:
+                    st.error(f"❌ Error al leer el archivo Excel: {str(e)}")
+                    df = None
+        
+        with col2:
+            st.subheader("📄 Plantilla Word")
+            word_file = st.file_uploader("Sube tu plantilla Word", type=['docx'])
+            
+            if word_file is not None:
+                st.success("✅ Plantilla Word cargada exitosamente")
+        
+        # Botón para generar documentos
+        if st.button("🚀 Generar Documentos", disabled=(excel_file is None or word_file is None)):
+            if excel_file is not None and word_file is not None:
+                with st.spinner("Generando documentos..."):
+                    try:
+                        # Procesar documentos
+                        zip_archivo, docs_exitosos, errores = procesar_documentos(df, word_file.getvalue())
+                        
+                        # Mostrar resultados
+                        st.success(f"✅ Proceso completado - {docs_exitosos} documentos generados")
+                        
+                        # Si hay errores, mostrarlos
+                        if errores:
+                            with st.expander("⚠️ Errores encontrados"):
+                                for error in errores:
+                                    st.error(error)
+                        
+                        # Botón de descarga
+                        st.download_button(
+                            label="📥 Descargar Documentos (ZIP)",
+                            data=zip_archivo.getvalue(),
+                            file_name="documentos_generados.zip",
+                            mime="application/zip"
+                        )
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error durante la generación: {str(e)}")
 
 # Función para mostrar la vista de aprendiz
 def mostrar_aprendiz():
