@@ -22,57 +22,68 @@ if 'vista_actual' not in st.session_state:
     st.session_state.vista_actual = 'inicio'
 
 # Recibe los documentos excel y word y regresa un zip con los documentos word llenos
+def procesar_texto(texto, aprendiz, columnas):
+    texto_nuevo = texto
+    
+    # Procesar marcadores especiales de nivel
+    if "{TECNICO}" in texto_nuevo:
+        if aprendiz['Nivel'] == "TECNICA":
+            texto_nuevo = texto_nuevo.replace("{TECNICO}", "X")
+        else:
+            texto_nuevo = texto_nuevo.replace("{TECNICO}", "")
+    
+    if "{TECNOLOGO}" in texto_nuevo:
+        if aprendiz['Nivel'] == "TECNOLOGIA":
+            texto_nuevo = texto_nuevo.replace("{TECNOLOGO}", "X")
+        else:
+            texto_nuevo = texto_nuevo.replace("{TECNOLOGO}", "")
+    
+    # Procesar el resto de marcadores
+    for columna in columnas:
+        marcador = '{' + columna.upper() + '}'
+        if marcador in texto_nuevo:
+            texto_nuevo = texto_nuevo.replace(marcador, str(aprendiz[columna]))
+    
+    return texto_nuevo
+
+def procesar_parrafos(container, aprendiz, columnas):
+    for paragraph in container.paragraphs:
+        for run in paragraph.runs:
+            run.text = procesar_texto(run.text, aprendiz, columnas)
+
+def procesar_tablas(doc, aprendiz, columnas):
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                procesar_parrafos(cell, aprendiz, columnas)
+
 def procesar_documentos(df, plantilla_word):
 
-    # Crear un archivo ZIP en memoria
     zip_archivo = io.BytesIO()
+    documentos_exitosos = 0
+    errores = []
     
     with ZipFile(zip_archivo, 'w') as zip_file:
-
-        # Contador de documentos procesados
-        documentos_exitosos = 0
-        errores = []
-        
-        # Usar plantilla desde bytes
         plantilla_temp = io.BytesIO(plantilla_word)
+        columnas = df.columns
         
-        # Procesar cada aprendiz
         for index, aprendiz in df.iterrows():
             try:
-                # Cargar la plantilla para cada aprendiz
+                # Cargar nueva copia de la plantilla
                 doc = Document(plantilla_temp)
-                plantilla_temp.seek(0)  # Pone el "puntero" al inicio del archivo
+                plantilla_temp.seek(0)
                 
-                # Reemplazar los marcadores en el documento
-                for paragraph in doc.paragraphs:
-                    for run in paragraph.runs:
-                        texto = run.text
-                        for columna in df.columns:
-                            marcador = '{' + columna.upper() + '}'
-                            if marcador in texto:
-                                texto = texto.replace(marcador, str(aprendiz[columna]))
-                        run.text = texto
+                # Procesar el documento
+                procesar_parrafos(doc, aprendiz, columnas)
+                procesar_tablas(doc, aprendiz, columnas)
                 
-                # También buscar en las tablas
-                for table in doc.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            for paragraph in cell.paragraphs:
-                                for run in paragraph.runs:
-                                    texto = run.text
-                                    for columna in df.columns:
-                                        marcador = '{' + columna.upper() + '}'
-                                        if marcador in texto:
-                                            texto = texto.replace(marcador, str(aprendiz[columna]))
-                                    run.text = texto
-                
-                # Guardar documento en memoria
+                # Guardar el documento procesado
                 doc_temp = io.BytesIO()
                 doc.save(doc_temp)
                 doc_temp.seek(0)
                 
-                # Generar nombre único para el archivo
-                nombre_archivo = f"{aprendiz['Nombre']}_{aprendiz['Apellidos']}_{'acta de inicio'}.docx"
+                # Generar nombre del archivo
+                nombre_archivo = f"{aprendiz['Nombre']}_{aprendiz['Apellidos']}_acta_de_inicio.docx"
                 
                 # Añadir al ZIP
                 zip_file.writestr(nombre_archivo, doc_temp.getvalue())
@@ -81,7 +92,58 @@ def procesar_documentos(df, plantilla_word):
             except Exception as e:
                 errores.append(f"Error procesando aprendiz {aprendiz['Nombre']} {aprendiz['Apellidos']}: {str(e)}")
     
+    zip_archivo.seek(0)
     return zip_archivo, documentos_exitosos, errores
+
+# Función para buscar un aprendiz en el DataFrame por nombre
+def buscar_aprendiz(df, nombre_completo):
+
+    # Normalizar el nombre completo de búsqueda
+    nombre_completo = nombre_completo.lower().strip()
+    
+    # Crear una columna temporal con nombre completo normalizado
+    df['nombre_completo_busqueda'] = (df['Nombre'].str.lower().str.strip() + ' ' +  df['Apellidos'].str.lower().str.strip())
+    
+    # Buscar el aprendiz
+    aprendiz = df[df['nombre_completo_busqueda'] == nombre_completo]
+    
+    # Eliminar la columna temporal
+    df.drop('nombre_completo_busqueda', axis=1, inplace=True)
+    
+    if len(aprendiz) == 0:
+        return None
+    if len(aprendiz) > 1:
+        print(f"Advertencia: Se encontraron {len(aprendiz)} aprendices con el nombre {nombre_completo}")
+    
+    return aprendiz.iloc[0]
+
+# Función para llenar el documento específico de un aprendiz
+def procesar_documento_individual(nombre_aprendiz, df, plantilla_word):
+
+    try:
+        # Buscar aprendiz
+        aprendiz = buscar_aprendiz(df, nombre_aprendiz)
+        if aprendiz is None:
+            return None, f"No se encontró ningún aprendiz con el nombre: {nombre_aprendiz}"
+        
+        # Cargar plantilla
+        plantilla_temp = io.BytesIO(plantilla_word)
+        doc = Document(plantilla_temp)
+        
+        # Procesar el documento
+        columnas = df.columns
+        procesar_parrafos(doc, aprendiz, columnas)
+        procesar_tablas(doc, aprendiz, columnas)
+        
+        # Guardar el documento procesado
+        doc_temp = io.BytesIO()
+        doc.save(doc_temp)
+        doc_temp.seek(0)
+        
+        return doc_temp, "Documento procesado exitosamente"
+        
+    except Exception as e:
+        return None, f"Error al procesar el documento: {str(e)}"
 
 # Función para cambiar la vista actual de la aplicación
 def cambiar_vista(nueva_vista):
@@ -296,7 +358,7 @@ def unir_pdfs_con_orden(archivos_pdf, es_tecnologo):
     # Si es tecnólogo y hay más de un documento
     if es_tecnologo and len(otros_docs) > 1:
         # Unir todos los documentos excepto el último
-        for archivo in otros_docs[:-1]:
+        for archivo in otros_docs:
             pdf_bytes = io.BytesIO(archivo.getvalue())
             merger.append(pdf_bytes)
         
@@ -327,6 +389,7 @@ def unir_pdfs_con_orden(archivos_pdf, es_tecnologo):
 
 # Función para mostrar/crear el formulario de subida de PDFs
 def mostrar_formulario_pdf():
+    df2 = pd.read_excel(r'Sources/Prueba.xls')
     st.write('Suba los archivos PDF en el campo correspondiente, al oprimir el boton "Consolidar PDFs" se uniran los archivos en un solo PDF y se enviará al instructor.')
     col1, col2 = st.columns(2)
 
@@ -334,9 +397,13 @@ def mostrar_formulario_pdf():
         fichaPdf = st.text_input("Introduzca el número de ficha del aprendiz:")
     with col2:
         nombrePdf = st.text_input("Introduzca nombre del aprendiz:")
+        #Llenar el formato de entrega de documentos
+        formato = procesar_documento_individual(nombrePdf, df2, open('Sources/Formato-entrega-documentacion-V7.docx', 'rb').read())
     
     # Verificar si es tecnólogo
     es_tecnologo = verificar_ficha_tecnologo(df, fichaPdf) == 'Tecnólogo'
+
+    
         
     archivos = []
         # Documentos base
@@ -345,8 +412,7 @@ def mostrar_formulario_pdf():
         "Agencia Publica de Empleo",
         "Paz y Salvo Academico",
         "Copia del Documento de Identidad",
-        "Certificación empresa",
-        "Formato de Entrega de Documentos"
+        "Certificación empresa"
     ]
     
     # Definir documentos a mostrar dinámicamente
@@ -379,6 +445,7 @@ def mostrar_formulario_pdf():
     
     # Preparar lista de archivos para unir
     archivos_para_unir = [archivo for archivo in archivos_subidos.values() if archivo is not None]
+    archivos_para_unir.append(formato[0])
     
     if st.button('Consolidar PDFs', key='btn_consolidar'):
         if len(documentos_faltantes) > 0:
