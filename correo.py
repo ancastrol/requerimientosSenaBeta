@@ -72,6 +72,7 @@ def requerimientos_2_3_4():
                     # Enviar correo al instructor con copia al aprendiz
                     enviar_correo_instructor(f'Fomalización de citación a comité aprendiz {nombre_aprendiz}', f'Se le notifica que el aprendiz {nombre_aprendiz} ha subido {cantidad_bitacoras} bitacoras y ya ha pasado el tiempo de entrega de la sexta bitacora, por lo que se solicita que formalice la citación a comité.')
                 
+                # Verificar que la fecha actual no sea mayor a la fecha de entrega de la doceava bitacora
                 elif fecha_actual > fecha_inicio + timedelta(days=intervalo_dias * 12) and cantidad_bitacoras < 12:
 
                     # Se modifica la columna COMITÉ por pendiente para que el instructor pueda ver que se debe formalizar la citación
