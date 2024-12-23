@@ -3,3 +3,10 @@ openpyxl
 python-docx
 tqdm
 xlrd>=2.0.1
+streamlit
+pandas
+PyPDF2
+tqdm
+docx2pdf
+pythoncom
+pywin32

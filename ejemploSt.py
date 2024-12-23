@@ -164,6 +164,31 @@ def buscar_aprendiz(df, documento):
     
     return aprendiz.iloc[0]
 
+def buscar_estudiante_ficha(df, documento, ficha):
+    # Convertir el número de documento a string y eliminar espacios
+    documento = str(documento).strip()
+    
+    # Convertir la columna de documento a string y eliminar espacios
+    df['NUMERO DE DOCUMENTO'] = df['NUMERO DE DOCUMENTO'].astype(str).str.strip()
+    
+    # Convertir el número de ficha a string y eliminar espacios
+    ficha = str(ficha).strip()
+    
+    # Convertir la columna de ficha a string y eliminar espacios
+    df['Ficha'] = df['Ficha'].astype(str).str.strip()
+
+    # Buscar el aprendiz por documento y ficha
+    aprendiz = df[(df['NUMERO DE DOCUMENTO'] == documento) & (df['Ficha'] == ficha)]
+    
+    if len(aprendiz) == 0:
+        print(f"No se encontró ningún aprendiz con el documento {documento} en la ficha {ficha}")
+        return None
+    
+    if len(aprendiz) > 1:
+        print(f"Advertencia: Se encontraron {len(aprendiz)} aprendices con la identificación No. {documento} en la ficha {ficha}")
+    
+    return aprendiz.iloc[0]
+
 def convertir_a_pdf(bytes_word):
     pythoncom.CoInitialize()
     word = None
@@ -467,30 +492,112 @@ def mostrar_aprendiz():
     if st.button('⬅️ Volver atrás', key='volver_aprendiz'):
         cambiar_vista('inicio')
         st.rerun()
+        # Crear la barra lateral
+    st.sidebar.title("Menú desplegable")
+    opcion = st.sidebar.selectbox(
+        'Elige una opción:',
+        ('Pantalla inicial', 'Consolidado PDF', 'Cronograma de actividades'))
+    
+    if opcion == 'Pantalla inicial':
 
-    # Titulo de la página
-    st.title('LLene este formulario para subir los documentos requeridos para la finalización de la etapa productiva')
+        col1, col2 = st.columns(2)
 
-    # Formulario para almacenar los datos faltantes en el excel
-    st.subheader('Formulario de subida de documentos')
+        with col1:
+            st.title('Herramientas de Desarrollo Etapa Productiva')
 
-    # Campos de entrada
-    col1, col2 = st.columns(2)
-    with col1:
-        documento = st.text_input('Documento de identidad:')
-        nombre = st.text_input('Nombre del aprendiz:')
-    with col2:
-        ficha = st.text_input('Numero de ficha:')
+        with col2:
+            # Mostrar la imagen en la ventana
+            st.image("picture103.jpg", width=200)
 
-    # Se dirige a la vista del consolidado pdf
-    if st.button('Consolidado PDF', key='btn_consolidado_pdf'):
-        st.session_state.nombre = nombre
-        st.session_state.documento = documento
-        st.session_state.ficha = ficha
-        cambiar_vista('formulario')
-        st.rerun()
+        # Contenido de la pagina
+        st.write('Este aplicativo busca facilitar multiples tareas de los instructores con respecto al manejo de sus aprendices que estan terminando la etapa productiva y estan en curso de certificarse. Si desea ver las funcionalidades disponibles se encuentra en la barra lateral a la izquierda de la pantalla.')
+    
+    elif opcion == 'Consolidado PDF':
+        # Titulo de la página
+        st.title('LLene este formulario para subir los documentos requeridos para la finalización de la etapa productiva')
+
+        # Formulario para almacenar los datos faltantes en el excel
+        st.subheader('Formulario de subida de documentos')
+
+        # Campos de entrada
+        col1, col2 = st.columns(2)
+        with col1:
+            documento = st.text_input('Documento de identidad:')
+            nombre = st.text_input('Nombre del aprendiz:')
+        with col2:
+            ficha = st.text_input('Numero de ficha:')
+
+        # Se dirige a la vista del consolidado pdf
+        if st.button('Consolidado PDF', key='btn_consolidado_pdf'):
+            st.session_state.nombre = nombre
+            st.session_state.documento = documento
+            st.session_state.ficha = ficha
+            cambiar_vista('formulario')
+            st.rerun()
+    elif opcion == 'Cronograma de actividades':
+        col1, col2 = st.columns(2)
+        #Inputs para pedir la información del aprendiz
+        with col1:
+            documento = st.text_input('Documento de identidad:')
+        with col2:
+            ficha = st.text_input('Numero de ficha:')
+
+        # Botón para generar cronograma
+        if st.button('Buscar Cronograma', key='btn_cronograma'):
+            if documento is not None and ficha is not None:
+                try:
+                    aprendiz = buscar_aprendiz(df, documento)
+                    if aprendiz is not None:
+                        st.success(f"✅ Aprendiz encontrado: {aprendiz['Aprendiz']}")
+                    else:
+                        st.error("❌ Aprendiz no encontrado")
+                except Exception as e:
+                    st.error(f"❌ Error al buscar aprendiz: {str(e)}")
+            else:
+                st.error("❌ Debes ingresar el documento y la ficha para buscar el cronograma")
+
+            # Crear el cronograma en un dataframe segun inicio real EP en aprendiz
+            dfcronograma = generar_cronograma(aprendiz['Inicio_Real_EP'])
+
+            st.dataframe(dfcronograma, hide_index=True, width=900)
+            
+
+def generar_cronograma(fecha_inicio):
+    # Convertir la fecha de inicio a un objeto de tipo datetime
+    fecha_inicio = pd.to_datetime(fecha_inicio)
+
+    # Crear un DataFrame vacío
+    df_bitacoras = pd.DataFrame(columns=['Fecha inicio', 'Fecha Fin', 'Actividad', 'Porcentaje de avance'])
+
+    # Crear las 12 bitácoras
+    for i in range(12):
+        # Calcular la fecha de la bitácora
+        fecha_bitacora = fecha_inicio + timedelta(days=15*(i+1))
+
+        # Definir los valores para cada fila
+        fecha_inicio_val = fecha_inicio.date()
+        fecha_fin_val = fecha_bitacora.date()
+        porcentaje_base = 8.33
         
+        # Establecer el valor de la columna "Actividad" de forma condicional
+        if i == 0:
+            actividad_val = f"Bitacora {i+1} - F-023 - Acta de inicio" 
+            porcentaje_val = porcentaje_base    
+        elif i == 5 or i == 11:
+            actividad_val = f"Bitacora {i+1} - F-023"
+            porcentaje_val = round(porcentaje_base*(i+1))
+        else:
+            actividad_val = f"Bitacora {i+1}"
+            porcentaje_val = porcentaje_base*(i+1)
         
+
+        # Agregar la fila al DataFrame
+        df_bitacoras.loc[i] = [fecha_inicio_val, fecha_fin_val, actividad_val, str(round(porcentaje_val,2)) + '%']
+
+        # Actualizar la fecha de inicio
+        fecha_inicio = fecha_bitacora
+
+    return df_bitacoras
 
 # Funcion para mostrar la vista del formulario de consolidado PDF
 def mostrar_formulario():
