@@ -144,6 +144,26 @@ def desercion_12_meses(df):
             aprendiz['instructor seguimiento'], 
             aprendiz['Correo Aprendiz'])
 
+# Función para buscar una ficha en el DataFrame
+def buscar_ficha(df, ficha):
+    # Convertir el número de documento a string y eliminar espacios
+    ficha = str(ficha).strip()
+    
+    # Convertir la columna de documento a string y eliminar espacios
+    df['Ficha'] = df['Ficha'].astype(str).str.strip()
+    
+    # Buscar el aprendiz
+    ficha = df[df['Ficha'] == ficha]
+    
+    if len(ficha) == 0:
+        print(f"No se encontró ningúna ficha con el numero {ficha}")
+        return None
+    
+    if len(ficha) >= 1:
+        return ficha.iloc[0]
+    
+    return ficha.iloc[0]
+
 # Función para buscar un aprendiz en el DataFrame
 def buscar_aprendiz(df, documento):
     # Convertir el número de documento a string y eliminar espacios
@@ -164,6 +184,19 @@ def buscar_aprendiz(df, documento):
     
     return aprendiz.iloc[0]
 
+# Función para reiniciar todos los estados
+def reiniciar_estados_aprendiz():
+    estados_a_reiniciar = [
+        'documento',
+        'aprendiz_encontrado',
+        'fecha_inicio',
+        'mostrar_fecha_input'
+    ]
+    for estado in estados_a_reiniciar:
+        if estado in st.session_state:
+            del st.session_state[estado]
+
+# Función para buscar un aprendiz en el DataFrame por documento y ficha
 def buscar_estudiante_ficha(df, documento, ficha):
     # Convertir el número de documento a string y eliminar espacios
     documento = str(documento).strip()
@@ -512,6 +545,7 @@ def mostrar_aprendiz():
         # Contenido de la pagina
         st.write('Este aplicativo busca facilitar multiples tareas de los instructores con respecto al manejo de sus aprendices que estan terminando la etapa productiva y estan en curso de certificarse. Si desea ver las funcionalidades disponibles se encuentra en la barra lateral a la izquierda de la pantalla.')
     
+    # Se dirige a la vista del consolidado pdf
     elif opcion == 'Consolidado PDF':
         # Titulo de la página
         st.title('LLene este formulario para subir los documentos requeridos para la finalización de la etapa productiva')
@@ -534,32 +568,108 @@ def mostrar_aprendiz():
             st.session_state.ficha = ficha
             cambiar_vista('formulario')
             st.rerun()
+
+    # Se dirige a la vista del cronograma de actividades
     elif opcion == 'Cronograma de actividades':
-        col1, col2 = st.columns(2)
-        #Inputs para pedir la información del aprendiz
-        with col1:
-            documento = st.text_input('Documento de identidad:')
-        with col2:
-            ficha = st.text_input('Numero de ficha:')
 
-        # Botón para generar cronograma
-        if st.button('Buscar Cronograma', key='btn_cronograma'):
-            if documento is not None and ficha is not None:
-                try:
-                    aprendiz = buscar_aprendiz(df, documento)
-                    if aprendiz is not None:
-                        st.success(f"✅ Aprendiz encontrado: {aprendiz['Aprendiz']}")
-                    else:
-                        st.error("❌ Aprendiz no encontrado")
-                except Exception as e:
-                    st.error(f"❌ Error al buscar aprendiz: {str(e)}")
-            else:
-                st.error("❌ Debes ingresar el documento y la ficha para buscar el cronograma")
+        st.sidebar.title("Menú desplegable")
+        opcion = st.sidebar.selectbox(
+        'Elige una opción:',
+        ('', 'Aprendiz', 'Ficha'))
 
-            # Crear el cronograma en un dataframe segun inicio real EP en aprendiz
-            dfcronograma = generar_cronograma(aprendiz['Inicio_Real_EP'])
+        if opcion == '':
+            st.subheader("Debes seleccionar una opción para buscar el cronograma")
 
-            st.dataframe(dfcronograma, hide_index=True, width=900)
+            # Reiniciar variables de estado
+            reiniciar_estados_aprendiz()
+
+        elif opcion == 'Aprendiz':
+            col1, col2 = st.columns(2)
+            
+            # Inicializar variables de estado si no existen
+            if 'documento' not in st.session_state:
+                st.session_state.documento = ''
+            if 'aprendiz_encontrado' not in st.session_state:
+                st.session_state.aprendiz_encontrado = None
+            if 'fecha_inicio' not in st.session_state:
+                st.session_state.fecha_inicio = None
+            if 'mostrar_fecha_input' not in st.session_state:
+                st.session_state.mostrar_fecha_input = False
+
+            # Input para documento en la primera columna
+            with col1:
+                documento = st.text_input('Documento de identidad:', value=st.session_state.documento)
+                st.session_state.documento = documento
+
+            # Botón de búsqueda
+            if st.button('Buscar Cronograma', key='btn_cronograma'):
+                if documento:
+                    try:
+                        aprendiz = buscar_aprendiz(df, documento)
+                        if aprendiz is not None:
+                            st.session_state.aprendiz_encontrado = aprendiz
+                            st.session_state.fecha_inicio = aprendiz['Inicio_Real_EP']
+                            st.success(f"✅ Aprendiz encontrado: {aprendiz['Aprendiz']}")
+                        else:
+                            st.session_state.aprendiz_encontrado = None
+                            st.error("❌ Aprendiz no encontrado")
+                    except Exception as e:
+                        st.error(f"❌ Error al buscar aprendiz: {str(e)}")
+                else:
+                    st.error("❌ Debes ingresar el documento para buscar el cronograma")
+
+            # Solo mostrar el resto si se encontró un aprendiz
+            if st.session_state.aprendiz_encontrado is not None:
+                st.write('Si desea cambiar la fecha de inicio de la etapa productiva, seleccione la casilla y escriba la fecha en el formato AAAA-MM-DD')
+                
+                # Checkbox para mostrar/ocultar el input de fecha
+                mostrar_fecha_input = st.checkbox('Cambiar fecha de inicio', 
+                                                value=st.session_state.mostrar_fecha_input,
+                                                key='checkbox_fecha')
+                st.session_state.mostrar_fecha_input = mostrar_fecha_input
+
+                if mostrar_fecha_input:
+                    nueva_fecha = st.text_input('Fecha de inicio de la etapa productiva:', 
+                                            value=st.session_state.fecha_inicio,
+                                            key='input_fecha')
+                    st.session_state.fecha_inicio = nueva_fecha
+                else:
+                    st.write(f"Fecha de inicio de la etapa productiva: {st.session_state.fecha_inicio}")
+
+                # Generar y mostrar el cronograma
+                if st.session_state.fecha_inicio:
+                    dfcronograma = generar_cronograma(st.session_state.fecha_inicio)
+                    st.dataframe(dfcronograma, hide_index=True, width=900)
+
+        elif opcion == 'Ficha':
+
+            # Reiniciar variables de estado
+            reiniciar_estados_aprendiz()
+
+            col1, col2 = st.columns(2)
+            #Inputs para pedir la información de la ficha
+            with col1:
+                ficha = st.text_input('Numero de ficha:')
+
+            # Botón para generar cronograma
+            if st.button('Buscar Cronograma', key='btn_cronograma'):
+                if ficha is not None:
+                    try:
+                        ficha = buscar_ficha(df, ficha)
+                        if ficha is not None:
+                            st.success(f"✅ Ficha encontrada: {ficha['Ficha']}")
+                        else:
+                            st.error("❌ Ficha no encontrada")
+                    except Exception as e:
+                        st.error(f"❌ Error al buscar ficha: {str(e)}")
+                else:
+                    st.error("❌ Debes ingresar el número de ficha para buscar el cronograma")
+
+                # Crear el cronograma en un dataframe segun inicio real EP en ficha
+                dfcronograma = generar_cronograma(ficha['Inicio_Real_EP'])
+
+                st.dataframe(dfcronograma, hide_index=True, width=900)
+        
             
 
 def generar_cronograma(fecha_inicio):
