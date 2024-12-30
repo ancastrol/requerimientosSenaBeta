@@ -76,6 +76,7 @@ def procesar_texto(texto, aprendiz, columnas):
     
     return texto_nuevo
 
+# Separación de procesamiento de texto en párrafos y tablas
 def procesar_parrafos(container, aprendiz, columnas):
     for paragraph in container.paragraphs:
         for run in paragraph.runs:
@@ -87,6 +88,7 @@ def procesar_tablas(doc, aprendiz, columnas):
             for cell in row.cells:
                 procesar_parrafos(cell, aprendiz, columnas)
 
+# Procesar los documentos completos usando la separación de párrafos y tablas
 def procesar_documentos(df, plantilla_word):
 
     zip_archivo = io.BytesIO()
@@ -125,6 +127,7 @@ def procesar_documentos(df, plantilla_word):
     zip_archivo.seek(0)
     return zip_archivo, documentos_exitosos, errores
 
+# Función para enviar correo al instructor con copia al aprendiz, cuando haya pasado su tiempo de etapa productiva
 def desercion_12_meses(df):
     # Se obtiene la fecha actual
     fecha_actual = pd.Timestamp.now()
@@ -222,6 +225,7 @@ def buscar_estudiante_ficha(df, documento, ficha):
     
     return aprendiz.iloc[0]
 
+# Función para convertir un archivo Word a PDF
 def convertir_a_pdf(bytes_word):
     pythoncom.CoInitialize()
     word = None
@@ -320,6 +324,7 @@ def convertir_a_pdf(bytes_word):
             
         pythoncom.CoUninitialize()
 
+# Función para procesar un documento individual, es decir un aprendiz a la vez
 def procesar_documento_individual(documento_aprendiz, df, plantilla_word):
     try:
         # Verificar entrada
@@ -670,7 +675,7 @@ def mostrar_aprendiz():
                 st.dataframe(dfcronograma, hide_index=True, width=900)
         
             
-
+# Función para generar el cronograma de actividades
 def generar_cronograma(fecha_inicio):
     # Convertir la fecha de inicio a un objeto de tipo datetime
     fecha_inicio = pd.to_datetime(fecha_inicio)
@@ -752,7 +757,7 @@ def enviar_correo_instructor(asunto, cuerpo, archivo_pdf, nombre_archivo):
     # Cierre de la conexión SMTP
     smtp.quit()
 
-# Función para enviar correo al instructor con copia al aprendiz y adjunto
+# Función para enviar correo al instructor con copia al aprendiz
 def enviar_correo_desercion(asunto, cuerpo, destinatario, destinatario2):
 
     # Obtener los detalles del correo electrónico
@@ -796,7 +801,7 @@ def verificar_ficha_tecnologo(df, numero_ficha):
         return False
     
 # Funcion para unir PDFs, tiene en cuenta que el TyT de haberlo va antes del ultimo documento
-def unir_pdfs_con_orden(archivos_pdf, es_tecnologo):
+def unir_pdfs_con_orden(archivos_pdf):
     merger = PdfMerger()
     
     # Se agregan los PDFs
@@ -813,6 +818,7 @@ def unir_pdfs_con_orden(archivos_pdf, es_tecnologo):
     output.seek(0)
     return output
 
+# Función para generar el formulario de consolidado PDF
 def mostrar_formulario_pdf():
     try:
         # Cargar datos
@@ -932,6 +938,7 @@ def mostrar_formulario_pdf():
         import traceback
         st.error(traceback.format_exc())
 
+# Función para validar que un archivo sea un PDF
 def validar_pdf(archivo):
     try:
         if archivo is not None:
