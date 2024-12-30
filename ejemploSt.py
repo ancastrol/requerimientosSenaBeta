@@ -113,14 +113,14 @@ def procesar_documentos(df, plantilla_word):
                 doc_temp.seek(0)
                 
                 # Generar nombre del archivo
-                nombre_archivo = f"{aprendiz['Nombre']}_{aprendiz['Apellidos']}_acta_de_inicio.docx"
+                nombre_archivo = f"{aprendiz['Aprendiz']}_acta_de_inicio.docx"
                 
                 # Añadir al ZIP
                 zip_file.writestr(nombre_archivo, doc_temp.getvalue())
                 documentos_exitosos += 1
                 
             except Exception as e:
-                errores.append(f"Error procesando aprendiz {aprendiz['Nombre']} {aprendiz['Apellidos']}: {str(e)}")
+                errores.append(f"Error procesando aprendiz {aprendiz['Aprendiz']}: {str(e)}")
     
     zip_archivo.seek(0)
     return zip_archivo, documentos_exitosos, errores
@@ -388,7 +388,7 @@ def mostrar_instructor():
     st.sidebar.title("Menú desplegable")
     opcion = st.sidebar.selectbox(
         'Elige una opción:',
-        ('Pantalla inicial', 'Consolidado PDF', 'Cruce de correspondencia', 'Proceso de descercion')
+        ('Pantalla inicial', 'Cruce de correspondencia', 'Proceso de descercion')
     )
     
     if opcion == 'Pantalla inicial':
@@ -405,8 +405,6 @@ def mostrar_instructor():
         # Contenido de la pagina
         st.write('Este aplicativo busca facilitar multiples tareas de los instructores con respecto al manejo de sus aprendices que estan terminando la etapa productiva y estan en curso de certificarse. Si desea ver las funcionalidades disponibles se encuentra en la barra lateral a la izquierda de la pantalla.')
 
-    elif opcion == 'Consolidado PDF':
-        mostrar_aprendiz()
 
     elif opcion == 'Cruce de correspondencia':
 
@@ -444,7 +442,7 @@ def mostrar_instructor():
                     
                     # Mostrar vista previa de los datos
                     with st.expander("👀 Vista previa de datos"):
-                        st.dataframe(df.head())
+                        st.dataframe(dfSubido.head())
                     
                     # Mostrar los marcadores disponibles
                     st.info("🔍 Marcadores disponibles:")
@@ -452,7 +450,7 @@ def mostrar_instructor():
                     st.code(", ".join(marcadores))
                 except Exception as e:
                     st.error(f"❌ Error al leer el archivo Excel: {str(e)}")
-                    df = None
+                    dfSubido = None
         
         with col2:
             st.subheader("📄 Plantilla Word")
@@ -467,7 +465,7 @@ def mostrar_instructor():
                 with st.spinner("Generando documentos..."):
                     try:
                         # Procesar documentos
-                        zip_archivo, docs_exitosos, errores = procesar_documentos(df, word_file.getvalue())
+                        zip_archivo, docs_exitosos, errores = procesar_documentos(dfSubido, word_file.getvalue())
                         
                         # Mostrar resultados
                         st.success(f"✅ Proceso completado - {docs_exitosos} documentos generados")
@@ -488,6 +486,7 @@ def mostrar_instructor():
                         
                     except Exception as e:
                         st.error(f"❌ Error durante la generación: {str(e)}")
+                    
     elif opcion == 'Proceso de descercion':
         st.title("Verificar aprendices que deban iniciar proceso de descerción")
         
@@ -500,15 +499,15 @@ def mostrar_instructor():
             
             if excel_file is not None:
                 try:
-                    df = pd.read_excel(excel_file)
-                    st.success(f"Excel cargado exitosamente - {len(df)} registros encontrados")
+                    dfSubido = pd.read_excel(excel_file)
+                    st.success(f"Excel cargado exitosamente - {len(dfSubido)} registros encontrados")
                     
                     # Boton que ejecuta la funcion de descercion
                     if st.button("🚀 Verificar descerción"):
                         if excel_file is not None:
                             with st.spinner("Verificando descerción..."):
                                 try:
-                                    desercion_12_meses(df)
+                                    desercion_12_meses(dfSubido)
                                     st.success(f"✅ Proceso de descerción completado")
                                 except Exception as e:
                                     st.error(f"❌ Error durante el proceso de descerción: {str(e)}")
